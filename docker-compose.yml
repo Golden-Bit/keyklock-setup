@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: kc-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - TZ=${TZ}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: keycloak
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    command: ["start", "--http-enabled=true", "--http-port=8080", "--proxy-headers=xforwarded"]
+    environment:
+      - KC_DB=postgres
+      - KC_DB_URL_HOST=postgres
+      - KC_DB_URL_DATABASE=${POSTGRES_DB}
+      - KC_DB_USERNAME=${POSTGRES_USER}
+      - KC_DB_PASSWORD=${POSTGRES_PASSWORD}
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_HOSTNAME=${KC_HOSTNAME}
+      - KC_PROXY=edge
+      - TZ=${TZ}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+
+volumes:
+  postgres_data:
+  keycloak_data:
